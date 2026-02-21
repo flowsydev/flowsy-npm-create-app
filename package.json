@@ -1,6 +1,6 @@
 {
   "name": "@flowsydev/create-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Flowsy Application Starter Tool",
   "type": "module",
   "bin": {

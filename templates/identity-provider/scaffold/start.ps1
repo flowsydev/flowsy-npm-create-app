@@ -143,13 +143,21 @@ if ($elapsed -ge $timeoutSeconds) {
 }
 
 Write-Progress -Activity "Identity Provider" -Status "Completed" -PercentComplete 100
+
+# ensure placeholders have been replaced before we try to parse the file
+if (Get-Content $ComposeFile -Raw | Select-String '__KEYCLOAK_PORT__') {
+    Write-Failure "compose.yml still contains placeholder values. Please run the project generator/configure step or edit the file to set a real port."
+    exit 1
+}
+
 $composeContent = Get-Content $ComposeFile -Raw
-$kcPort = if ($composeContent -match '- "?(\d+):8080"?') { $Matches[1].Trim('"') } else { "8080" }
+$kcPort = if ($composeContent -match "- ['\"]?(\d+):8080['\"]?") { $Matches[1].Trim('"') } else { "8080" }
 $kcAdminUser = if ($composeContent -match 'KC_ADMIN_USERNAME:\s*(\S+)') { $Matches[1].Trim('"') } else { "admin" }
 $kcAdminPassword = if ($composeContent -match 'KC_ADMIN_PASSWORD:\s*(\S+)') { $Matches[1].Trim('"') } else { "admin" }
 
 Write-Success "Services ready 🚀"
 Write-Info "Keycloak: http://localhost:$kcPort"
+# note: fallback to 8080 above only happens on failure to parse the file
 Write-Info "Admin user: $kcAdminUser"
 Write-Info "Admin password: $kcAdminPassword"
 Write-Info "To stop: .\stop.ps1 -Engine $Engine"

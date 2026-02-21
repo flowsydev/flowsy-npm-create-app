@@ -115,12 +115,20 @@ info "Selected engine: $ENGINE"
 run_with_spinner "Bringing up identity provider services" "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d
 wait_for_healthchecks
 
-KC_PORT=$(grep -E '^\s*-\s*"?[0-9]+:8080"?' "$COMPOSE_FILE" 2>/dev/null | head -1 | sed -E 's/[^0-9]*([0-9]+):8080.*/\1/' || true)
+# make sure placeholders have been replaced before we try to parse the file
+if grep -q '__KEYCLOAK_PORT__' "$COMPOSE_FILE"; then
+  error "compose.yml still contains placeholder values. Please run the project generator/configure step or edit the file to set a real port."
+  exit 1
+fi
+
+KC_PORT=$(grep -E "^\s*-\s*['\"]?[0-9]+:8080['\"]?" "$COMPOSE_FILE" 2>/dev/null | head -1 | sed -E 's/[^0-9]*([0-9]+):8080.*/\1/' || true)
 KC_ADMIN_USER=$(grep 'KC_ADMIN_USERNAME:' "$COMPOSE_FILE" 2>/dev/null | head -1 | sed -E 's/.*KC_ADMIN_USERNAME:[[:space:]]*//' | tr -d '"' | xargs || true)
 KC_ADMIN_PASSWORD=$(grep 'KC_ADMIN_PASSWORD:' "$COMPOSE_FILE" 2>/dev/null | head -1 | sed -E 's/.*KC_ADMIN_PASSWORD:[[:space:]]*//' | tr -d '"' | xargs || true)
 
 success "Services ready 🚀"
 info "Keycloak: http://localhost:${KC_PORT:-8080}"
+# note: the default of 8080 is only used if grep failed; the check above should
+# have prevented an unconfigured compose.yml from reaching this point.
 info "Admin user: ${KC_ADMIN_USER:-admin}"
 info "Admin password: ${KC_ADMIN_PASSWORD:-admin}"
 info "To stop: ./stop.sh $ENGINE"
