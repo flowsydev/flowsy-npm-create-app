@@ -1,14 +1,32 @@
 {
   "name": "@flowsydev/create-app",
-  "version": "0.1.3-dev",
+  "version": "1.0.0",
   "description": "Flowsy Application Starter Tool",
   "type": "module",
-  "main": "src/index.js",
-  "bin": "src/index.js",
+  "bin": {
+    "create-app": "bin/cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin",
+    "templates",
+    "README.md"
+  ],
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node bin/cli.js",
     "pub": "npm publish --access public",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepare": "husky",
+    "lint:js": "eslint .",
+    "lint:js:fix": "eslint . --fix",
+    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
+    "lint:md:fix": "markdownlint \"**/*.md\" --ignore node_modules --fix",
+    "format": "prettier . --write"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flowsydev/flowsy-npm-create-app.git"
   },
   "keywords": [
     "tool",
@@ -17,7 +35,14 @@
   "author": "Adrián Avilés",
   "license": "ISC",
   "dependencies": {
-    "inquirer": "^9.1.5",
-    "nanospinner": "^1.1.0"
+    "fs-extra": "^11.3.1",
+    "kolorist": "^1.8.0",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "eslint": "^10.0.1",
+    "husky": "^9.1.7",
+    "markdownlint-cli": "^0.47.0",
+    "prettier": "^3.8.1"
   }
 }

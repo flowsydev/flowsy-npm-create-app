@@ -1,0 +1,572 @@
+{
+  "realm": "example",
+  "enabled": true,
+  "displayName": "Example Realm",
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin"
+      },
+      {
+        "name": "editor"
+      },
+      {
+        "name": "viewer"
+      },
+      {
+        "name": "developer"
+      },
+      {
+        "name": "analyst"
+      },
+      {
+        "name": "support"
+      },
+      {
+        "name": "manager"
+      },
+      {
+        "name": "auditor"
+      },
+      {
+        "name": "operator"
+      },
+      {
+        "name": "guest"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "example-web-app",
+      "name": "Example Web Application",
+      "description": "Public client for the example web frontend that handles user authentication and redirects.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3000/*",
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "example-web-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "example-web-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "example-web-api",
+      "name": "Example Web API",
+      "description": "Backend API client using JWT bearer tokens for authentication. It does not handle user sessions or redirects.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "juan.garcia",
+      "firstName": "Juan",
+      "lastName": "Garcia",
+      "email": "juan.garcia@example.com",
+      "enabled": true,
+      "realmRoles": ["admin"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "emily.smith",
+      "firstName": "Emily",
+      "lastName": "Smith",
+      "email": "emily.smith@example.com",
+      "enabled": true,
+      "realmRoles": ["editor"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "carlos.martinez",
+      "firstName": "Carlos",
+      "lastName": "Martinez",
+      "email": "carlos.martinez@example.com",
+      "enabled": true,
+      "realmRoles": ["viewer"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "sarah.johnson",
+      "firstName": "Sarah",
+      "lastName": "Johnson",
+      "email": "sarah.johnson@example.com",
+      "enabled": true,
+      "realmRoles": ["developer"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "pedro.rodriguez",
+      "firstName": "Pedro",
+      "lastName": "Rodriguez",
+      "email": "pedro.rodriguez@example.com",
+      "enabled": true,
+      "realmRoles": ["analyst"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "olivia.brown",
+      "firstName": "Olivia",
+      "lastName": "Brown",
+      "email": "olivia.brown@example.com",
+      "enabled": true,
+      "realmRoles": ["support"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "diego.lopez",
+      "firstName": "Diego",
+      "lastName": "Lopez",
+      "email": "diego.lopez@example.com",
+      "enabled": true,
+      "realmRoles": ["manager"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "jessica.jones",
+      "firstName": "Jessica",
+      "lastName": "Jones",
+      "email": "jessica.jones@example.com",
+      "enabled": true,
+      "realmRoles": ["auditor"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "miguel.hernandez",
+      "firstName": "Miguel",
+      "lastName": "Hernandez",
+      "email": "miguel.hernandez@example.com",
+      "enabled": true,
+      "realmRoles": ["operator"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "amanda.miller",
+      "firstName": "Amanda",
+      "lastName": "Miller",
+      "email": "amanda.miller@example.com",
+      "enabled": true,
+      "realmRoles": ["guest"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "alejandro.gonzalez",
+      "firstName": "Alejandro",
+      "lastName": "Gonzalez",
+      "email": "alejandro.gonzalez@example.com",
+      "enabled": true,
+      "realmRoles": ["admin"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "nicole.davis",
+      "firstName": "Nicole",
+      "lastName": "Davis",
+      "email": "nicole.davis@example.com",
+      "enabled": true,
+      "realmRoles": ["editor"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "luis.perez",
+      "firstName": "Luis",
+      "lastName": "Perez",
+      "email": "luis.perez@example.com",
+      "enabled": true,
+      "realmRoles": ["viewer"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "laura.wilson",
+      "firstName": "Laura",
+      "lastName": "Wilson",
+      "email": "laura.wilson@example.com",
+      "enabled": true,
+      "realmRoles": ["developer"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "jorge.sanchez",
+      "firstName": "Jorge",
+      "lastName": "Sanchez",
+      "email": "jorge.sanchez@example.com",
+      "enabled": true,
+      "realmRoles": ["analyst"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "elizabeth.anderson",
+      "firstName": "Elizabeth",
+      "lastName": "Anderson",
+      "email": "elizabeth.anderson@example.com",
+      "enabled": true,
+      "realmRoles": ["support"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "raul.ramirez",
+      "firstName": "Raul",
+      "lastName": "Ramirez",
+      "email": "raul.ramirez@example.com",
+      "enabled": true,
+      "realmRoles": ["manager"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "michelle.taylor",
+      "firstName": "Michelle",
+      "lastName": "Taylor",
+      "email": "michelle.taylor@example.com",
+      "enabled": true,
+      "realmRoles": ["auditor"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "fernando.torres",
+      "firstName": "Fernando",
+      "lastName": "Torres",
+      "email": "fernando.torres@example.com",
+      "enabled": true,
+      "realmRoles": ["operator"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "rachel.thomas",
+      "firstName": "Rachel",
+      "lastName": "Thomas",
+      "email": "rachel.thomas@example.com",
+      "enabled": true,
+      "realmRoles": ["guest"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "javier.flores",
+      "firstName": "Javier",
+      "lastName": "Flores",
+      "email": "javier.flores@example.com",
+      "enabled": true,
+      "realmRoles": ["admin"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "ashley.jackson",
+      "firstName": "Ashley",
+      "lastName": "Jackson",
+      "email": "ashley.jackson@example.com",
+      "enabled": true,
+      "realmRoles": ["editor"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "andres.rivera",
+      "firstName": "Andres",
+      "lastName": "Rivera",
+      "email": "andres.rivera@example.com",
+      "enabled": true,
+      "realmRoles": ["viewer"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "megan.white",
+      "firstName": "Megan",
+      "lastName": "White",
+      "email": "megan.white@example.com",
+      "enabled": true,
+      "realmRoles": ["developer"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "jose.gomez",
+      "firstName": "Jose",
+      "lastName": "Gomez",
+      "email": "jose.gomez@example.com",
+      "enabled": true,
+      "realmRoles": ["analyst"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "brittany.harris",
+      "firstName": "Brittany",
+      "lastName": "Harris",
+      "email": "brittany.harris@example.com",
+      "enabled": true,
+      "realmRoles": ["support"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "mateo.diaz",
+      "firstName": "Mateo",
+      "lastName": "Diaz",
+      "email": "mateo.diaz@example.com",
+      "enabled": true,
+      "realmRoles": ["manager"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "stephanie.martin",
+      "firstName": "Stephanie",
+      "lastName": "Martin",
+      "email": "stephanie.martin@example.com",
+      "enabled": true,
+      "realmRoles": ["auditor"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "santiago.cruz",
+      "firstName": "Santiago",
+      "lastName": "Cruz",
+      "email": "santiago.cruz@example.com",
+      "enabled": true,
+      "realmRoles": ["operator"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "jennifer.thompson",
+      "firstName": "Jennifer",
+      "lastName": "Thompson",
+      "email": "jennifer.thompson@example.com",
+      "enabled": true,
+      "realmRoles": ["guest"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "andres.mendoza",
+      "firstName": "Andres",
+      "lastName": "Mendoza",
+      "email": "andres.mendoza@example.com",
+      "enabled": true,
+      "realmRoles": ["admin"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "hannah.clark",
+      "firstName": "Hannah",
+      "lastName": "Clark",
+      "email": "hannah.clark@example.com",
+      "enabled": true,
+      "realmRoles": ["editor"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "ricardo.ortega",
+      "firstName": "Ricardo",
+      "lastName": "Ortega",
+      "email": "ricardo.ortega@example.com",
+      "enabled": true,
+      "realmRoles": ["viewer"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "natalie.brooks",
+      "firstName": "Natalie",
+      "lastName": "Brooks",
+      "email": "natalie.brooks@example.com",
+      "enabled": true,
+      "realmRoles": ["developer"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "tomas.vega",
+      "firstName": "Tomas",
+      "lastName": "Vega",
+      "email": "tomas.vega@example.com",
+      "enabled": true,
+      "realmRoles": ["analyst"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "camila.reyes",
+      "firstName": "Camila",
+      "lastName": "Reyes",
+      "email": "camila.reyes@example.com",
+      "enabled": true,
+      "realmRoles": ["support"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "esteban.morales",
+      "firstName": "Esteban",
+      "lastName": "Morales",
+      "email": "esteban.morales@example.com",
+      "enabled": true,
+      "realmRoles": ["manager"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "danielle.ward",
+      "firstName": "Danielle",
+      "lastName": "Ward",
+      "email": "danielle.ward@example.com",
+      "enabled": true,
+      "realmRoles": ["auditor"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "adrian.castillo",
+      "firstName": "Adrian",
+      "lastName": "Castillo",
+      "email": "adrian.castillo@example.com",
+      "enabled": true,
+      "realmRoles": ["operator"],
+      "attributes": {
+        "gender": ["male"]
+      },
+      "emailVerified": true
+    },
+    {
+      "username": "victoria.price",
+      "firstName": "Victoria",
+      "lastName": "Price",
+      "email": "victoria.price@example.com",
+      "enabled": true,
+      "realmRoles": ["guest"],
+      "attributes": {
+        "gender": ["female"]
+      },
+      "emailVerified": true
+    }
+  ]
+}

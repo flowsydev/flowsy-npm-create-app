@@ -1,0 +1,59 @@
+volumes:
+  postgres-data:
+
+services:
+  postgres:
+    image: postgres:__POSTGRES_VERSION__
+    container_name: __PROJECT_NAME___postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: __POSTGRES_PASSWORD__
+      POSTGRES_DB: postgres
+    ports:
+      - '__POSTGRES_PORT__:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  keycloak:
+    image: keycloak/keycloak:__KEYCLOAK_VERSION__
+    container_name: __PROJECT_NAME___keycloak
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: __KEYCLOAK_DB_NAME__
+      KC_DB_USERNAME: __KEYCLOAK_DB_USER__
+      KC_DB_PASSWORD: __KEYCLOAK_DB_PASSWORD__
+      KC_HEALTH_ENABLED: 'true'
+      KC_METRICS_ENABLED: 'true'
+      KC_BOOTSTRAP_ADMIN_USERNAME: __KEYCLOAK_BOOTSTRAP_ADMIN_USER__
+      KC_BOOTSTRAP_ADMIN_PASSWORD: __KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD__
+      KC_ADMIN_USER: __KEYCLOAK_ADMIN_USER__
+      KC_ADMIN_PASSWORD: __KEYCLOAK_ADMIN_PASSWORD__
+    ports:
+      - '__KEYCLOAK_PORT__:8080'
+      - '__KEYCLOAK_METRICS_PORT__:9000'
+    volumes:
+      - ./keycloak/realms:/opt/keycloak/data/import-realms:ro
+      - ./keycloak/scripts/keycloak-init.sh:/opt/keycloak/scripts/keycloak-init.sh:ro
+    entrypoint: ['/bin/bash', '/opt/keycloak/scripts/keycloak-init.sh']
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; grep -q \"\\\"status\\\": \\\"UP\\\"\" <&3'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
