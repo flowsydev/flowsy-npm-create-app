@@ -1,0 +1,394 @@
+# yaml-language-server: $schema=
+# Service templates for infra-kit.
+# config.js reads this file as text and substitutes variables to generate compose.yml.
+# The markers # [name] and # [/name] delimit each service block.
+#
+# Common substitution variables:
+#   __TAG__                               Docker image version/tag
+#   {service}-__SVC__                     Full service name as it appears in compose.yml
+#                                         (e.g. postgres-__SVC__, kafka-__SVC__)
+#   __CONTAINER_NAME__                    Container name ({project}_{service_name})
+#   __PROJECT__                           Project name
+#   __PORT_<internal_port>__              External port for the given internal port
+#   __IMAGE__                             Image name (without tag) for the current service
+#
+# Service-specific variables:
+#   __POSTGRES_PASSWORD__                 PostgreSQL superuser password
+#   __MYSQL_ROOT_PASSWORD__               MySQL root password
+#   __MYSQL_DATABASE__                    MySQL initial database
+#   __MYSQL_USER__                        MySQL user
+#   __MYSQL_PASSWORD__                    MySQL user password
+#   __MARIADB_ROOT_PASSWORD__             MariaDB root password
+#   __MARIADB_DATABASE__                  MariaDB initial database
+#   __MARIADB_USER__                      MariaDB user
+#   __MARIADB_PASSWORD__                  MariaDB user password
+#   __MSSQL_SA_PASSWORD__                 SQL Server SA password
+#   __KC_DB_VENDOR__                      Database engine for Keycloak (postgres|mysql|mariadb|mssql)
+#   __KC_DB_SERVICE__                     Database service name Keycloak depends on
+#   __KC_DB_PORT__                        Internal port of the Keycloak database
+#   __KEYCLOAK_DB_NAME__                  Keycloak database name
+#   __KEYCLOAK_DB_USER__                  Keycloak database user
+#   __KEYCLOAK_DB_PASSWORD__              Keycloak database password
+#   __KEYCLOAK_BOOTSTRAP_ADMIN_USER__     Keycloak bootstrap user
+#   __KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD__ Keycloak bootstrap password
+#   __KEYCLOAK_ADMIN_USER__               Keycloak admin user
+#   __KEYCLOAK_ADMIN_PASSWORD__           Keycloak admin password
+#   __KAFKA_SERVICE__                     Kafka service name for Kafka UI
+#   __REDPANDA_SERVICE__                  Redpanda service name for Redpanda Console
+#   __RABBITMQ_USER__                     RabbitMQ user
+#   __RABBITMQ_PASSWORD__                 RabbitMQ password
+#   __MAILPIT_UI_AUTH__                   Mailpit UI & API credentials (user:password)
+#   __MAILPIT_SEND_API_AUTH__             Mailpit send API credentials
+#   __MAILPIT_SMTP_AUTH__                 Mailpit SMTP credentials (user:password)
+
+volumes:
+  # [postgres-volumes]
+  postgres-__SVC__-data:
+    driver: local
+    name: __PROJECT__-postgres-__SVC__
+  # [/postgres-volumes]
+  # [mysql-volumes]
+  mysql-__SVC__-data:
+    driver: local
+    name: __PROJECT__-mysql-__SVC__
+  # [/mysql-volumes]
+  # [mariadb-volumes]
+  mariadb-__SVC__-data:
+    driver: local
+    name: __PROJECT__-mariadb-__SVC__
+  # [/mariadb-volumes]
+  # [mssql-volumes]
+  mssql-__SVC__-data:
+    driver: local
+    name: __PROJECT__-mssql-__SVC__
+  # [/mssql-volumes]
+  # [redis-volumes]
+  redis-__SVC__-data:
+    driver: local
+    name: __PROJECT__-redis-__SVC__
+  # [/redis-volumes]
+  # [keycloak-volumes]
+  keycloak-__SVC__-data:
+    driver: local
+    name: __PROJECT__-keycloak-__SVC__
+  # [/keycloak-volumes]
+  # [kafka-volumes]
+  kafka-__SVC__-data:
+    driver: local
+    name: __PROJECT__-kafka-__SVC__
+  # [/kafka-volumes]
+  # [redpanda-volumes]
+  redpanda-__SVC__-data:
+    driver: local
+    name: __PROJECT__-redpanda-__SVC__
+  # [/redpanda-volumes]
+  # [rabbitmq-volumes]
+  rabbitmq-__SVC__-data:
+    driver: local
+    name: __PROJECT__-rabbitmq-__SVC__
+  # [/rabbitmq-volumes]
+  # [mailpit-volumes]
+  mailpit-__SVC__-data:
+    driver: local
+    name: __PROJECT__-mailpit-__SVC__
+  # [/mailpit-volumes]
+
+services:
+  # [postgres]
+  postgres-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: __POSTGRES_PASSWORD__
+      POSTGRES_DB: postgres
+      PGDATA: /var/lib/postgresql/data
+    ports:
+      - "__PORT_5432__:5432"
+    volumes:
+      - postgres-__SVC__-data:/var/lib/postgresql/data
+      - ./postgres-__SVC__/init:/docker-entrypoint-initdb.d:ro
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+  # [/postgres]
+  # [mysql]
+  mysql-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    environment:
+      MYSQL_ROOT_PASSWORD: __MYSQL_ROOT_PASSWORD__
+      MYSQL_DATABASE: __MYSQL_DATABASE__
+      MYSQL_USER: __MYSQL_USER__
+      MYSQL_PASSWORD: __MYSQL_PASSWORD__
+    ports:
+      - "__PORT_3306__:3306"
+    volumes:
+      - mysql-__SVC__-data:/var/lib/mysql
+      - ./mysql-__SVC__/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+  # [/mysql]
+  # [mariadb]
+  mariadb-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    environment:
+      MARIADB_ROOT_PASSWORD: __MARIADB_ROOT_PASSWORD__
+      MARIADB_DATABASE: __MARIADB_DATABASE__
+      MARIADB_USER: __MARIADB_USER__
+      MARIADB_PASSWORD: __MARIADB_PASSWORD__
+    ports:
+      - "__PORT_3306__:3306"
+    volumes:
+      - mariadb-__SVC__-data:/var/lib/mysql
+      - ./mariadb-__SVC__/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+  # [/mariadb]
+  # [mssql]
+  mssql-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: __MSSQL_SA_PASSWORD__
+    ports:
+      - "__PORT_1433__:1433"
+    volumes:
+      - mssql-__SVC__-data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P \"$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" -b",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+  # [/mssql]
+  # [redis]
+  redis-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    command: redis-server --appendonly yes
+    ports:
+      - "__PORT_6379__:6379"
+    volumes:
+      - redis-__SVC__-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+  # [/redis]
+  # [keycloak]
+  keycloak-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    depends_on:
+      __KC_DB_SERVICE__:
+        condition: service_healthy
+    environment:
+      KC_DB: __KC_DB_VENDOR__
+      KC_DB_URL_HOST: __KC_DB_SERVICE__
+      KC_DB_URL_PORT: __KC_DB_PORT__
+      KC_DB_URL_DATABASE: __KEYCLOAK_DB_NAME__
+      KC_DB_USERNAME: __KEYCLOAK_DB_USER__
+      KC_DB_PASSWORD: __KEYCLOAK_DB_PASSWORD__
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: __KEYCLOAK_BOOTSTRAP_ADMIN_USER__
+      KC_BOOTSTRAP_ADMIN_PASSWORD: __KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD__
+      KC_ADMIN_USER: __KEYCLOAK_ADMIN_USER__
+      KC_ADMIN_PASSWORD: __KEYCLOAK_ADMIN_PASSWORD__
+    ports:
+      - "__PORT_8080__:8080"
+      - "__PORT_9000__:9000"
+    volumes:
+      - keycloak-__SVC__-data:/opt/keycloak/data
+      - ./keycloak/realms:/opt/keycloak/data/import-realms:ro
+      - ./keycloak/scripts/keycloak-init.sh:/opt/keycloak/scripts/keycloak-init.sh:ro
+    entrypoint: ["/bin/bash", "/opt/keycloak/scripts/keycloak-init.sh"]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; grep -q \"\\\"status\\\": \\\"UP\\\"\" <&3'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+  # [/keycloak]
+  # [kafka]
+  kafka-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # PLAINTEXT: internal access (other containers via Docker network)
+      # EXTERNAL:  external access (from the host via mapped port)
+      # CONTROLLER: internal KRaft controller communication
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-__SVC__:9092,EXTERNAL://localhost:__PORT_9092__
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      # __PORT_9092__ on the host -> EXTERNAL listener (29092 in the container)
+      - "__PORT_9092__:29092"
+    volumes:
+      - kafka-__SVC__-data:/var/lib/kafka/data
+    tmpfs:
+      - /etc/kafka/secrets
+      - /mnt/shared/config
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+  # [/kafka]
+  # [kafka-ui]
+  kafka-ui-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    depends_on:
+      __KAFKA_SERVICE__:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: __KAFKA_SERVICE__:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    ports:
+      - "__PORT_8080__:8080"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO /dev/null http://localhost:8080/actuator/health || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+  # [/kafka-ui]
+  # [redpanda]
+  redpanda-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda-__SVC__:9092,external://localhost:__PORT_9092__
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://redpanda-__SVC__:8082,external://localhost:__PORT_8082__
+      - --rpc-addr redpanda-__SVC__:33145
+      - --advertise-rpc-addr redpanda-__SVC__:33145
+      - --mode dev-container
+      - --smp 1
+      - --default-log-level=warn
+    ports:
+      - "__PORT_9092__:19092"
+      - "__PORT_8081__:18081"
+      - "__PORT_8082__:18082"
+      - "__PORT_9644__:9644"
+    volumes:
+      - redpanda-__SVC__-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+  # [/redpanda]
+  # [redpanda-console]
+  redpanda-console-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    depends_on:
+      __REDPANDA_SERVICE__:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKERS: __REDPANDA_SERVICE__:9092
+    ports:
+      - "__PORT_8080__:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+  # [/redpanda-console]
+  # [rabbitmq]
+  rabbitmq-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    hostname: rabbitmq-__SVC__
+    environment:
+      RABBITMQ_DEFAULT_USER: __RABBITMQ_USER__
+      RABBITMQ_DEFAULT_PASS: __RABBITMQ_PASSWORD__
+    ports:
+      - "__PORT_5672__:5672"
+      - "__PORT_15672__:15672"
+    volumes:
+      - rabbitmq-__SVC__-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+  # [/rabbitmq]
+  # [mailpit]
+  mailpit-__SVC__:
+    image: __IMAGE__:__TAG__
+    container_name: __CONTAINER_NAME__
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_UI_AUTH: __MAILPIT_UI_AUTH__
+      MP_SEND_API_AUTH: __MAILPIT_SEND_API_AUTH__
+      MP_SMTP_AUTH: __MAILPIT_SMTP_AUTH__
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "__PORT_1025__:1025"
+      - "__PORT_8025__:8025"
+    volumes:
+      - mailpit-__SVC__-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -S --spider http://localhost:8025/ 2>&1 | grep -q 'HTTP/'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+  # [/mailpit]

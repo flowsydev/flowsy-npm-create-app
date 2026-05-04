@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/compose.yml"
-ENGINE="${1:-docker}"
+ENGINE="${1:-podman}"
 
 info() { printf 'ℹ️  %s\n' "$*"; }
 success() { printf '✅ %s\n' "$*"; }
@@ -11,11 +11,11 @@ error() { printf '❌ %s\n' "$*"; }
 
 usage() {
   cat <<USAGE
-Usage: ./start.sh [docker|podman]
+Usage: ./start.sh [podman|docker]
 
 Arguments:
-  docker  Use Docker as the container engine (default)
-  podman  Use Podman as the container engine
+  podman  Use Podman as the container engine (default)
+  docker  Use Docker as the container engine
 USAGE
 }
 
@@ -52,16 +52,22 @@ wait_for_healthchecks() {
   local timeout_seconds=300
   local elapsed=0
 
-  printf '⏳ Waiting for postgres and keycloak health checks'
+  # determine which services are defined so we can wait for all of them
+  local services
+  services="$("${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" config --services 2>/dev/null || true)"
+  local svc_count
+  svc_count=$(echo "$services" | wc -w | tr -d ' ')
+
+  printf '⏳ Waiting for service health checks: %s' "$services"
   while (( elapsed < timeout_seconds )); do
     local status_output
     status_output="$("${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" ps 2>/dev/null || true)"
 
-    if [[ "$status_output" == *"postgres"* ]] && [[ "$status_output" == *"keycloak"* ]]; then
+    if [[ -n "$svc_count" ]]; then
       local healthy_count
       healthy_count="$(printf '%s' "$status_output" | grep -oi 'healthy' | wc -l | tr -d ' ')"
-      if [[ "$healthy_count" -ge 2 ]]; then
-        printf '\r✅ Health checks complete                                  \n'
+      if [[ "$healthy_count" -ge $svc_count ]]; then
+        printf '\r✅ Health checks completed                                  \n'
         return 0
       fi
     fi
@@ -72,8 +78,8 @@ wait_for_healthchecks() {
   done
 
   printf '\n'
-  error "Maximum wait time for health checks reached."
-  info "Check the logs with: ${COMPOSE_CMD[*]} -f $COMPOSE_FILE logs -f"
+  error "Timed out waiting for health checks."
+  info "Check logs with: ${COMPOSE_CMD[*]} -f $COMPOSE_FILE logs -f"
   return 1
 }
 
@@ -87,17 +93,17 @@ declare -a COMPOSE_CMD
 
 if [[ "$ENGINE" == "docker" ]]; then
   if ! command -v docker >/dev/null 2>&1; then
-    error "docker not found on system."
+    error "docker was not found on this system."
     exit 1
   fi
   if ! docker compose version >/dev/null 2>&1; then
-    error "docker is installed but 'docker compose' is not available."
+    error "docker is installed, but 'docker compose' is not available."
     exit 1
   fi
   COMPOSE_CMD=(docker compose)
 else
   if ! command -v podman >/dev/null 2>&1; then
-    error "podman not found on system."
+    error "podman was not found on this system."
     exit 1
   fi
 
@@ -106,29 +112,37 @@ else
   elif command -v podman-compose >/dev/null 2>&1; then
     COMPOSE_CMD=(podman-compose)
   else
-    error "neither 'podman compose' nor 'podman-compose' found."
+    error "'podman compose' and 'podman-compose' were not found."
     exit 1
   fi
 fi
 
 info "Selected engine: $ENGINE"
-run_with_spinner "Bringing up identity provider services" "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d
+run_with_spinner "Starting infrastructure services" "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d
 wait_for_healthchecks
 
-# make sure placeholders have been replaced before we try to parse the file
-if grep -q '__KEYCLOAK_PORT__' "$COMPOSE_FILE"; then
-  error "compose.yml still contains placeholder values. Please run the project generator/configure step or edit the file to set a real port."
-  exit 1
-fi
-
-KC_PORT=$(grep -E "^\s*-\s*['\"]?[0-9]+:8080['\"]?" "$COMPOSE_FILE" 2>/dev/null | head -1 | sed -E 's/[^0-9]*([0-9]+):8080.*/\1/' || true)
-KC_ADMIN_USER=$(grep 'KC_ADMIN_USERNAME:' "$COMPOSE_FILE" 2>/dev/null | head -1 | sed -E 's/.*KC_ADMIN_USERNAME:[[:space:]]*//' | tr -d '"' | xargs || true)
-KC_ADMIN_PASSWORD=$(grep 'KC_ADMIN_PASSWORD:' "$COMPOSE_FILE" 2>/dev/null | head -1 | sed -E 's/.*KC_ADMIN_PASSWORD:[[:space:]]*//' | tr -d '"' | xargs || true)
-
 success "Services ready 🚀"
-info "Keycloak: http://localhost:${KC_PORT:-8080}"
-# note: the default of 8080 is only used if grep failed; the check above should
-# have prevented an unconfigured compose.yml from reaching this point.
-info "Admin user: ${KC_ADMIN_USER:-admin}"
-info "Admin password: ${KC_ADMIN_PASSWORD:-admin}"
+
+# list exposed ports by parsing compose.yml
+info "Exposed ports by service:"
+current_svc=""
+in_services=false
+in_ports=false
+while IFS= read -r line; do
+  if [[ "$line" == "services:" ]]; then
+    in_services=true; continue
+  fi
+  $in_services || continue
+  if [[ "$line" =~ ^[[:space:]]{2}([a-zA-Z][^:[:space:]]+): ]]; then
+    current_svc="${BASH_REMATCH[1]}"; in_ports=false
+  elif [[ "$line" =~ ^[[:space:]]{4}ports:[[:space:]]*$ ]]; then
+    in_ports=true
+  elif $in_ports && [[ "$line" =~ ^[[:space:]]{6}-[[:space:]] ]]; then
+    port="${line#*- }"; port="${port//\"/}"
+    printf 'ℹ️    %-25s %s\n' "${current_svc}:" "$port"
+  elif $in_ports && [[ "$line" =~ ^[[:space:]]{4}[^[:space:]] ]]; then
+    in_ports=false
+  fi
+done < "$COMPOSE_FILE"
+
 info "To stop: ./stop.sh $ENGINE"

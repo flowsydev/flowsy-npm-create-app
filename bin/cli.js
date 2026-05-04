@@ -7,205 +7,307 @@ import { green, cyan, yellow, red } from 'kolorist';
 import { execSync } from 'node:child_process';
 import { printBanner, getOSInfo, showProjectStructure } from './util.js';
 
+// -- Constants ----------------------------------------------------------------
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = resolve(__dirname, '..', 'templates');
+
+/** Available template catalog. */
+const TEMPLATES = {
+  infraKit: {
+    id: 'infra-kit',
+    description: 'InfraKit: Databases, Messaging & Identity in Containers',
+  },
+};
+
+/** Shared handler: aborts when the user cancels a prompt. */
+const onCancel = () => {
+  throw new Error('Operation cancelled');
+};
+
+// -- Dynamic template loading -------------------------------------------------
+
+function getTemplateScaffoldPath(templateName) {
+  return resolve(TEMPLATES_DIR, templateName, 'scaffold');
+}
+
+/**
+ * Dynamically imports a template's config.js module.
+ * If the template has no config.js, returns empty stubs.
+ */
+async function loadTemplateModule(templateName) {
+  const configPath = resolve(TEMPLATES_DIR, templateName, 'config.js');
+  if (!fs.existsSync(configPath)) {
+    return {
+      getPrompts: () => [],
+      configure: async () => {},
+    };
+  }
+
+  const moduleUrl = pathToFileURL(configPath).href;
+  const templateModule = await import(moduleUrl);
+  return {
+    getPrompts:
+      typeof templateModule.getPrompts === 'function' ? templateModule.getPrompts : () => [],
+    collectConfig:
+      typeof templateModule.collectConfig === 'function' ? templateModule.collectConfig : null,
+    configure:
+      typeof templateModule.configure === 'function' ? templateModule.configure : async () => {},
+    parseExistingCompose:
+      typeof templateModule.parseExistingCompose === 'function'
+        ? templateModule.parseExistingCompose
+        : null,
+  };
+}
+
+// -- Helpers ------------------------------------------------------------------
+
+const relativeToCwd = (p) => {
+  if (!p) return '.';
+  try {
+    const abs = resolve(p);
+    const rel = relative(process.cwd(), abs);
+    return rel === '' ? '.' : rel;
+  } catch {
+    return p;
+  }
+};
+
+// -- Post-creation instructions -----------------------------------------------
+
+function printNextSteps(dest, template) {
+  const displayDest = relativeToCwd(dest);
+  console.log(`Next steps:`);
+  console.log(`  cd ${cyan(displayDest)}`);
+
+  if (template !== TEMPLATES.infraKit.id) return;
+
+  console.log(green('  1. Read the README.md for usage details and troubleshooting.\n'));
+  console.log(green('  2. Review and adjust compose.yml to your needs before starting.'));
+
+  const osInfo = getOSInfo();
+
+  if (osInfo.isWindows) {
+    console.log(`  .\\start.ps1`);
+    console.log(`\n${cyan('Note:')} If you encounter issues with the execution policy, run:`);
+    console.log(`  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser\n`);
+  } else {
+    console.log(`  chmod u+x start.sh stop.sh`);
+    console.log(`  ./start.sh\n`);
+  }
+
+  console.log(`  ${cyan('Alternatively, you can use Docker/Podman directly:')}`);
+  console.log(`  podman compose up -d`);
+  console.log(`  ${yellow('or')}`);
+  console.log(`  docker compose up -d\n`);
+}
+
+// -- Main flow ----------------------------------------------------------------
 
 async function main() {
   printBanner();
 
-  // args: my-cool-app /ruta/o/carpeta-destino
+  // Optional args: npx @flowsydev/create-app <name> <destination-dir>
   const [, , argProjectName, argDestinationDir] = process.argv;
-  let targetDir = argProjectName?.trim();
-  let destinationDirArg = argDestinationDir?.trim();
+  const targetDir = argProjectName?.trim();
+  const destinationDirArg = argDestinationDir?.trim();
 
-  const templates = {
-    identityProvider: {
-      id: 'identity-provider',
-      description: 'Identity Provider (Keycloak + PostgreSQL in Containers)',
+  // Step 1 - Template selection
+  const { template } = await prompts(
+    {
+      type: 'select',
+      name: 'template',
+      message: 'Application type:',
+      choices: [
+        {
+          title: TEMPLATES.infraKit.description,
+          value: TEMPLATES.infraKit.id,
+        },
+      ],
+      initial: 0,
     },
-  };
-
-  function onCancel() {
-    throw new Error('Operation cancelled');
-  }
-
-  // Step 1: Basic prompts
-  const basicResponse = await prompts(
-    [
-      {
-        type: 'select',
-        name: 'template',
-        message: 'Application type:',
-        choices: [
-          {
-            title: templates.identityProvider.description,
-            value: templates.identityProvider.id,
-          },
-        ],
-        initial: 0,
-      },
-    ],
-    {
-      onCancel,
-    }
+    { onCancel }
   );
 
-  const projectNameResponse = await prompts(
-    [
-      {
-        type: targetDir ? null : 'text',
-        name: 'projectName',
-        message: 'Project name:',
-        initial: `my-${basicResponse.template}`,
-      },
-    ],
+  // Step 2 - Project name
+  const { projectName: promptedName } = await prompts(
     {
-      onCancel,
-    }
+      type: targetDir ? null : 'text',
+      name: 'projectName',
+      message: 'Project name:',
+      initial: `my-${template}`,
+    },
+    { onCancel }
+  );
+  const projectName = targetDir ?? promptedName;
+
+  // Step 3 - Destination folder
+  const { destinationDir: promptedDest } = await prompts(
+    {
+      type: destinationDirArg ? null : 'text',
+      name: 'destinationDir',
+      message: 'Destination folder (relative to current directory):',
+      initial: relativeToCwd(process.cwd()),
+      format: (value) => value?.trim(),
+    },
+    { onCancel }
   );
 
-  // helper to show a path relative to the current working directory
-  const relativeToCwd = (p) => {
-    if (!p) return '.';
-    try {
-      // resolve to absolute first
-      const abs = resolve(p);
-      const rel = relative(process.cwd(), abs);
-      return rel === '' ? '.' : rel;
-    } catch {
-      return p;
-    }
-  };
-
-  const destinationResponse = await prompts(
-    [
-      {
-        type: destinationDirArg ? null : 'text',
-        name: 'destinationDir',
-        message: 'Destination folder (relative to current directory):',
-        initial: relativeToCwd(process.cwd()),
-        format: (value) => value?.trim(),
-      },
-    ],
-    {
-      onCancel,
-    }
-  );
-
-  const destinationBaseDirInput = destinationDirArg ?? destinationResponse.destinationDir;
-  const destinationBaseDir = destinationBaseDirInput
-    ? resolve(process.cwd(), destinationBaseDirInput)
-    : process.cwd();
+  const destinationBaseDir =
+    (destinationDirArg ?? promptedDest)
+      ? resolve(process.cwd(), destinationDirArg ?? promptedDest)
+      : process.cwd();
 
   if (fs.existsSync(destinationBaseDir)) {
-    const destinationStat = await fs.stat(destinationBaseDir);
-    if (!destinationStat.isDirectory()) {
+    const stat = await fs.stat(destinationBaseDir);
+    if (!stat.isDirectory()) {
       throw new Error(`The destination path is not a folder: ${relativeToCwd(destinationBaseDir)}`);
     }
   } else {
     await fs.mkdirp(destinationBaseDir);
   }
 
-  // Step 2: Template-specific prompts
-  const templateModule = await loadTemplateModule(basicResponse.template);
-  const templatePrompts = templateModule.getPrompts();
+  const dest = resolve(destinationBaseDir, projectName);
+  const templateModule = await loadTemplateModule(template);
+
+  // Step 4 - Detect update mode (folder with existing compose.yml)
+  let existingServices = new Set();
+  let existingDetails = null;
+  const isUpdate = fs.existsSync(resolve(dest, 'compose.yml'));
+
+  if (isUpdate && typeof templateModule.parseExistingCompose === 'function') {
+    existingDetails = await templateModule.parseExistingCompose(dest);
+    existingServices = existingDetails.serviceTypes;
+
+    if (existingServices.size > 0) {
+      console.log(`\n${cyan('Update mode:')} existing services:\n`);
+      for (const [type, instances] of existingDetails.instances) {
+        console.log(`  ${green(type)}`);
+        for (const inst of instances) {
+          const portsStr = Object.entries(inst.ports)
+            .map(([int, ext]) => `${ext}->${int}`)
+            .join(', ');
+          console.log(`    ${inst.serviceName}  ${cyan(inst.image)}  [${portsStr}]`);
+        }
+      }
+      console.log();
+    }
+  }
+
+  // Step 5 - Template-specific prompts (e.g. service selection or actions)
+  const templatePrompts = templateModule.getPrompts({ existingServices });
   let templateConfig = {};
 
   if (templatePrompts.length > 0) {
-    templateConfig = await prompts(templatePrompts, {
-      onCancel,
+    templateConfig = await prompts(templatePrompts, { onCancel });
+  }
+
+  // Step 6 - Detailed template configuration (images, versions, ports, credentials)
+  let enrichedConfig = templateConfig;
+  if (typeof templateModule.collectConfig === 'function') {
+    enrichedConfig = await templateModule.collectConfig(templateConfig, {
+      existingServices,
+      existingDetails,
+      destPath: dest,
     });
   }
 
-  // Step 3: Final confirmation and options
-  const projectName = targetDir ?? projectNameResponse.projectName;
-  const finalResponse = await prompts(
-    [
+  // Step 7 - Confirmation and destination folder preparation
+  if (isUpdate) {
+    const newServices = enrichedConfig.services ?? [];
+    const removals = enrichedConfig.removals ?? [];
+    const edits = enrichedConfig.edits ?? {};
+    const additions = enrichedConfig.additions ?? {};
+    const hasChanges =
+      newServices.length > 0 ||
+      removals.length > 0 ||
+      Object.keys(edits).length > 0 ||
+      Object.keys(additions).length > 0;
+
+    if (!hasChanges) {
+      console.log(yellow('\nNo changes selected. Nothing to do.'));
+      process.exit(0);
+    }
+
+    // Changes summary
+    const summary = [];
+    if (newServices.length > 0) summary.push(`add: ${newServices.map((s) => green(s)).join(', ')}`);
+    if (Object.keys(additions).length > 0)
+      summary.push(
+        `new instances: ${Object.keys(additions)
+          .map((s) => green(s))
+          .join(', ')}`
+      );
+    if (Object.keys(edits).length > 0)
+      summary.push(
+        `edit: ${Object.keys(edits)
+          .map((s) => cyan(s))
+          .join(', ')}`
+      );
+    if (removals.length > 0) summary.push(`remove: ${removals.map((s) => red(s)).join(', ')}`);
+    console.log(`\nChanges to apply: ${summary.join(' | ')}\n`);
+  } else if (fs.existsSync(dest)) {
+    const { overwrite } = await prompts(
       {
         type: 'confirm',
-        name: 'initGit',
-        message: 'Initialize a Git repository?',
-        initial: false,
-      },
-      {
-        type: (_prev, _values) => {
-          const dest = resolve(destinationBaseDir, projectName);
-          return fs.existsSync(dest) ? 'confirm' : null;
-        },
         name: 'overwrite',
-        message: (_prev) => `The folder already exists. Overwrite?`,
+        message: 'The folder already exists. Overwrite?',
         initial: false,
       },
-    ],
-    {
-      onCancel,
-    }
-  );
-
-  // Merge all responses
-  const response = { ...basicResponse, ...templateConfig, ...finalResponse };
-  const template = response.template;
-  const dest = resolve(destinationBaseDir, projectName);
-
-  if (response.overwrite === false) {
-    console.log(
-      yellow('Aborted: The destination folder already exists and will not be overwritten.')
+      { onCancel }
     );
-    process.exit(1);
-  }
-  if (response.overwrite) await fs.emptyDir(dest);
 
-  const templateScaffoldDir = getTemplateScaffoldPath(template);
-  if (!fs.existsSync(templateScaffoldDir)) {
-    console.log(red(`Scaffold not found for template: ${template}`));
-    process.exit(1);
+    if (overwrite === false) {
+      console.log(yellow('Aborted'));
+      process.exit(1);
+    }
+    await fs.emptyDir(dest);
   }
 
-  // Copy template scaffold to destination
-  await fs.copy(templateScaffoldDir, dest);
+  if (!isUpdate) {
+    // Copy scaffold only in creation mode
+    const src = getTemplateScaffoldPath(template);
+    if (!fs.existsSync(src)) {
+      console.log(red(`Scaffold not found for template: ${template}`));
+      process.exit(1);
+    }
+    await fs.copy(src, dest);
+  }
 
-  // Configure the template with the provided values
-  await templateModule.configure(dest, response);
+  await templateModule.configure(dest, enrichedConfig);
 
-  // Rename _gitignore -> .gitignore
+  // Step 8 - Post-processing
   const gi = resolve(dest, '_gitignore');
   if (fs.existsSync(gi)) await fs.move(gi, resolve(dest, '.gitignore'));
 
-  const excludedPaths = ['.idea', '.vscode', 'dist', 'node_modules'];
-  for (const p of excludedPaths) {
+  for (const p of ['.idea', '.vscode', 'dist', 'node_modules']) {
     const fullPath = resolve(dest, p);
-    if (fs.existsSync(fullPath)) {
-      await fs.remove(fullPath);
-    }
+    if (fs.existsSync(fullPath)) await fs.remove(fullPath);
   }
 
+  // Adjust README title
   const readmePath = resolve(dest, 'README.md');
-  const hasReadme = fs.existsSync(readmePath);
-
-  if (hasReadme) {
+  if (fs.existsSync(readmePath)) {
     const readmeContent = await fs.readFile(readmePath, 'utf-8');
-    const readmeLines = readmeContent.split(/\r?\n/);
-    const readmeTitleIndex = readmeLines.findIndex((line) => /^#\s+.+/.test(line));
+    const lines = readmeContent.split(/\r?\n/);
+    const titleIdx = lines.findIndex((line) => /^#\s+.+/.test(line));
 
-    if (readmeTitleIndex >= 0) {
-      readmeLines[readmeTitleIndex] = `# ${projectName}`;
+    if (titleIdx >= 0) {
+      lines[titleIdx] = `# ${projectName}`;
     } else {
-      readmeLines.unshift(`# ${projectName}`, '');
+      lines.unshift(`# ${projectName}`, '');
     }
 
-    await fs.writeFile(readmePath, readmeLines.join('\n'));
+    await fs.writeFile(readmePath, lines.join('\n'));
   }
 
+  // Adjust package.json and install dependencies (if applicable)
   const pkgPath = resolve(dest, 'package.json');
-  const hasPackageJson = fs.existsSync(pkgPath);
-
-  if (hasPackageJson) {
-    // Adjust package.json (name)
+  if (fs.existsSync(pkgPath)) {
     const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf-8'));
     pkg.name = projectName;
     await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2));
 
-    // Run npm install
     console.log('\nInstalling dependencies...');
     try {
       execSync('npm install', { stdio: 'inherit', cwd: dest });
@@ -225,74 +327,40 @@ async function main() {
     }
   }
 
-  if (response.initGit) {
-    console.log('\nInitializing Git repository...');
-    try {
-      execSync('git init', { stdio: 'ignore', cwd: dest });
-    } catch {
-      console.log(yellow("Failed to initialize Git repository. Please run 'git init' manually."));
-    }
-  }
+  // Step 9 - Git initialization (optional, only in creation mode)
+  if (!isUpdate) {
+    const { initGit } = await prompts(
+      {
+        type: 'confirm',
+        name: 'initGit',
+        message: 'Initialize a Git repository?',
+        initial: false,
+      },
+      { onCancel }
+    );
 
-  // Final message
-  const displayDest = relativeToCwd(dest);
-  console.log(`\n✅ Project created in ${cyan(displayDest)}\n`);
-
-  // Show project structure
-  showProjectStructure(dest, projectName);
-
-  console.log(`Next steps:`);
-  console.log(`  cd ${cyan(displayDest)}`);
-
-  const osInfo = getOSInfo();
-
-  switch (template) {
-    case templates.identityProvider.id: {
-      console.log(green('  Read the README.md and compose.yml files of the project.'));
-
-      if (osInfo.isWindows) {
-        console.log(`  .\\start.ps1`);
-        console.log(`\n${cyan('Note:')} If you encounter issues with the execution policy, run:`);
-        console.log(`  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser\n`);
-      } else {
-        console.log(`  chmod u+x start.sh ./stop.sh`);
-        console.log(`  ./start.sh <docker|podman>\n`);
+    if (initGit) {
+      console.log('\nInitializing Git repository...');
+      try {
+        execSync('git init', { stdio: 'ignore', cwd: dest });
+      } catch {
+        console.log(yellow('Failed to initialize Git repository.'));
       }
-      console.log(`  ${cyan('Alternatively, you can use Docker/Podman directly:')}`);
-      console.log(`  docker compose up -d`);
-      console.log(`  ${yellow('or')}`);
-      console.log(`  podman compose up -d\n`);
-      break;
     }
-    default:
-      break;
   }
+
+  // Step 10 - Final summary
+  const displayDest = relativeToCwd(dest);
+  console.log(
+    isUpdate
+      ? `\n✅ Project updated in ${cyan(displayDest)}\n`
+      : `\n✅ Project created in ${cyan(displayDest)}\n`
+  );
+  showProjectStructure(dest, projectName);
+  printNextSteps(dest, template);
 }
 
 main().catch((e) => {
   console.error(red(String(e?.message ?? e)));
   process.exit(1);
 });
-
-function getTemplateScaffoldPath(templateName) {
-  return resolve(TEMPLATES_DIR, templateName, 'scaffold');
-}
-
-async function loadTemplateModule(templateName) {
-  const configPath = resolve(TEMPLATES_DIR, templateName, 'config.js');
-  if (!fs.existsSync(configPath)) {
-    return {
-      getPrompts: () => [],
-      configure: async () => {},
-    };
-  }
-
-  const moduleUrl = pathToFileURL(configPath).href;
-  const templateModule = await import(moduleUrl);
-  return {
-    getPrompts:
-      typeof templateModule.getPrompts === 'function' ? templateModule.getPrompts : () => [],
-    configure:
-      typeof templateModule.configure === 'function' ? templateModule.configure : async () => {},
-  };
-}

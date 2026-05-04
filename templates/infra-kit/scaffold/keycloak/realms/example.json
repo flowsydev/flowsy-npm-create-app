@@ -1,0 +1,403 @@
+{
+  "realm": "example",
+  "enabled": true,
+  "displayName": "Example Realm",
+  "sslRequired": "none",
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      {
+        "name": "operador",
+        "description": "Operador de instalaciones. Acceso de lectura a sistemas operativos y registro de actividades en campo."
+      },
+      {
+        "name": "tecnico-especialista",
+        "description": "Técnico especialista. Acceso a datos técnicos, diagnósticos de equipo e informes de mantenimiento."
+      },
+      {
+        "name": "supervisor-area",
+        "description": "Supervisor de área. Acceso a reportes de producción, gestión de turnos y seguimiento de KPIs operativos."
+      },
+      {
+        "name": "auditor-hse",
+        "description": "Auditor de Health, Safety & Environment. Acceso a registros de seguridad, incidentes y cumplimiento normativo."
+      },
+      {
+        "name": "gerente-unidad",
+        "description": "Gerente de unidad de negocio. Acceso completo a dashboards ejecutivos, aprobación de presupuestos y gestión de personal."
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "pemex-web-app",
+      "name": "Pemex Web Application",
+      "description": "Aplicación web de frontend con autenticación basada en sesión (Cookie). Obtiene tokens de Keycloak y los adjunta a las peticiones hacia pemex-web-api.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3000/*",
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "pemex-web-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "pemex-web-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "pemex-web-api",
+      "name": "Pemex Web API",
+      "description": "Aplicación web de backend que valida tokens JWT Bearer emitidos por Keycloak. No realiza flujos de autenticación propios; recibe el token que pemex-web-app obtiene en nombre del usuario.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "carlos.hernandez",
+      "email": "carlos.hernandez@pemex.com",
+      "firstName": "Carlos",
+      "lastName": "Hernández Vargas",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["gerente-unidad", "supervisor-area"]
+    },
+    {
+      "username": "miguel.ramirez",
+      "email": "miguel.ramirez@pemex.com",
+      "firstName": "Miguel",
+      "lastName": "Ramírez Castillo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["operador"]
+    },
+    {
+      "username": "jose.garcia",
+      "email": "jose.garcia@pemex.com",
+      "firstName": "José",
+      "lastName": "García Mendoza",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["tecnico-especialista"]
+    },
+    {
+      "username": "alejandro.martinez",
+      "email": "alejandro.martinez@pemex.com",
+      "firstName": "Alejandro",
+      "lastName": "Martínez Ríos",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["operador"]
+    },
+    {
+      "username": "roberto.gonzalez",
+      "email": "roberto.gonzalez@pemex.com",
+      "firstName": "Roberto",
+      "lastName": "González Luna",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["supervisor-area"]
+    },
+    {
+      "username": "fernando.lopez",
+      "email": "fernando.lopez@pemex.com",
+      "firstName": "Fernando",
+      "lastName": "López Salinas",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["tecnico-especialista"]
+    },
+    {
+      "username": "juan.morales",
+      "email": "juan.morales@pemex.com",
+      "firstName": "Juan",
+      "lastName": "Morales Reyes",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["operador"]
+    },
+    {
+      "username": "sergio.flores",
+      "email": "sergio.flores@pemex.com",
+      "firstName": "Sergio",
+      "lastName": "Flores Vega",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["auditor-hse"]
+    },
+    {
+      "username": "eduardo.castillo",
+      "email": "eduardo.castillo@pemex.com",
+      "firstName": "Eduardo",
+      "lastName": "Castillo Díaz",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["tecnico-especialista"]
+    },
+    {
+      "username": "ricardo.pena",
+      "email": "ricardo.pena@pemex.com",
+      "firstName": "Ricardo",
+      "lastName": "Peña Guzmán",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["operador"]
+    },
+    {
+      "username": "maria.rodriguez",
+      "email": "maria.rodriguez@pemex.com",
+      "firstName": "María",
+      "lastName": "Rodríguez Torres",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["gerente-unidad", "auditor-hse"]
+    },
+    {
+      "username": "alejandra.sanchez",
+      "email": "alejandra.sanchez@pemex.com",
+      "firstName": "Alejandra",
+      "lastName": "Sánchez Cruz",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["supervisor-area"]
+    },
+    {
+      "username": "gabriela.jimenez",
+      "email": "gabriela.jimenez@pemex.com",
+      "firstName": "Gabriela",
+      "lastName": "Jiménez Mora",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["tecnico-especialista"]
+    },
+    {
+      "username": "lucia.mendoza",
+      "email": "lucia.mendoza@pemex.com",
+      "firstName": "Lucía",
+      "lastName": "Mendoza Fuentes",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["operador"]
+    },
+    {
+      "username": "sofia.vazquez",
+      "email": "sofia.vazquez@pemex.com",
+      "firstName": "Sofía",
+      "lastName": "Vázquez Romero",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["supervisor-area"]
+    },
+    {
+      "username": "claudia.cruz",
+      "email": "claudia.cruz@pemex.com",
+      "firstName": "Claudia",
+      "lastName": "Cruz Estrada",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["operador"]
+    },
+    {
+      "username": "patricia.ramos",
+      "email": "patricia.ramos@pemex.com",
+      "firstName": "Patricia",
+      "lastName": "Ramos Delgado",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["tecnico-especialista"]
+    },
+    {
+      "username": "veronica.gutierrez",
+      "email": "veronica.gutierrez@pemex.com",
+      "firstName": "Verónica",
+      "lastName": "Gutiérrez Núñez",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["operador"]
+    },
+    {
+      "username": "ana.ruiz",
+      "email": "ana.ruiz@pemex.com",
+      "firstName": "Ana",
+      "lastName": "Ruiz Medina",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["auditor-hse"]
+    },
+    {
+      "username": "leticia.ortiz",
+      "email": "leticia.ortiz@pemex.com",
+      "firstName": "Leticia",
+      "lastName": "Ortiz Cabrera",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe123!",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["tecnico-especialista"]
+    }
+  ]
+}

@@ -42,16 +42,16 @@ extract_realm_name() {
 setup_admin_user() {
   log "Authenticating with bootstrap user..."
 
-  # On first start the bootstrap user exists; on later restarts
-  # Keycloak does not recreate it (the master realm already has an admin),
-  # so we try authenticating with the final user as a fallback.
+  # On first startup the bootstrap user exists; on subsequent restarts
+  # Keycloak does not recreate it (the master realm already has admin),
+  # so we try to authenticate with the final user as a fallback.
   if ! "$KCADM_BIN" config credentials \
     --server http://127.0.0.1:8080 \
     --realm master \
     --user "$BOOTSTRAP_USER" \
     --password "$BOOTSTRAP_PASSWORD" 2>/dev/null; then
 
-    log "Bootstrap user not available. Trying final user '$FINAL_ADMIN_USER'..."
+    log "Bootstrap user not available. Trying with final user '$FINAL_ADMIN_USER'..."
     if ! "$KCADM_BIN" config credentials \
       --server http://127.0.0.1:8080 \
       --realm master \
@@ -60,11 +60,11 @@ setup_admin_user() {
       log "ERROR: Could not authenticate with any admin user."
       return 1
     fi
-    log "Authenticated as '$FINAL_ADMIN_USER'. Admin setup was already done on a previous startup."
+    log "Authenticated as '$FINAL_ADMIN_USER'. Admin setup was already done in a previous startup."
     return 0
   fi
 
-  # Check whether the final admin user already exists
+  # Check if the final admin user already exists
   if "$KCADM_BIN" get users -r master -q "username=$FINAL_ADMIN_USER" 2>/dev/null | grep -q "\"username\" : \"$FINAL_ADMIN_USER\""; then
     log "Final admin user '$FINAL_ADMIN_USER' already exists."
   else
@@ -72,22 +72,22 @@ setup_admin_user() {
     "$KCADM_BIN" create users -r master \
       -s username="$FINAL_ADMIN_USER" \
       -s enabled=true >/dev/null
-    
+
     log "Setting password for '$FINAL_ADMIN_USER'..."
     "$KCADM_BIN" set-password -r master \
       --username "$FINAL_ADMIN_USER" \
       --new-password "$FINAL_ADMIN_PASSWORD" >/dev/null
-    
+
     log "Assigning admin role to '$FINAL_ADMIN_USER'..."
     "$KCADM_BIN" add-roles -r master \
       --uusername "$FINAL_ADMIN_USER" \
       --rolename admin >/dev/null
-    
+
     log "Final admin user '$FINAL_ADMIN_USER' created successfully."
   fi
 
-  # Re-authenticate with the final user before removing the bootstrap user,
-  # so the active session does not get invalidated when the bootstrap user is deleted.
+  # Re-authenticate with the final user before deleting bootstrap,
+  # so the active session is not invalidated when the bootstrap user is removed.
   log "Re-authenticating with final admin user '$FINAL_ADMIN_USER'..."
   "$KCADM_BIN" config credentials \
     --server http://127.0.0.1:8080 \
@@ -95,14 +95,14 @@ setup_admin_user() {
     --user "$FINAL_ADMIN_USER" \
     --password "$FINAL_ADMIN_PASSWORD" >/dev/null
 
-  # Remove bootstrap user if it exists and is different from final user
+  # Delete the bootstrap user if it exists and differs from the final one
   if [[ "$BOOTSTRAP_USER" != "$FINAL_ADMIN_USER" ]]; then
     if "$KCADM_BIN" get users -r master -q "username=$BOOTSTRAP_USER" 2>/dev/null | grep -q "\"username\" : \"$BOOTSTRAP_USER\""; then
       log "Deleting bootstrap user '$BOOTSTRAP_USER'..."
       local bootstrap_id
       bootstrap_id=$("$KCADM_BIN" get users -r master -q "username=$BOOTSTRAP_USER" --fields id --format csv --noquotes 2>/dev/null | tail -n 1)
       "$KCADM_BIN" delete "users/$bootstrap_id" -r master >/dev/null
-      log "Bootstrap user '$BOOTSTRAP_USER' removed."
+      log "Bootstrap user '$BOOTSTRAP_USER' deleted."
     fi
   fi
 }
@@ -110,7 +110,6 @@ setup_admin_user() {
 import_missing_realms() {
   shopt -s nullglob
   local realm_files=("$IMPORT_DIR"/*.json)
-  local failed_imports=0
 
   if (( ${#realm_files[@]} == 0 )); then
     log "No JSON files found in $IMPORT_DIR."
@@ -122,42 +121,26 @@ import_missing_realms() {
     realm_name="$(extract_realm_name "$realm_file")"
 
     if [[ -z "$realm_name" ]]; then
-      log "Skipping $realm_file: missing top-level \"realm\" attribute."
+      log "Skipping $realm_file: missing root \"realm\" attribute."
       continue
     fi
 
     if "$KCADM_BIN" get "realms/$realm_name" >/dev/null 2>&1; then
-      log "Realm '$realm_name' already exists; skipping import."
+      log "Realm '$realm_name' already exists. Skipping import."
       continue
     fi
 
     log "Importing realm '$realm_name' from $(basename "$realm_file")..."
-    local import_err_file
-    import_err_file="$(mktemp)"
-    if ! "$KCADM_BIN" create realms -f "$realm_file" >/dev/null 2>"$import_err_file"; then
-      log "ERROR: Import failed for realm '$realm_name'."
-      if [[ -s "$import_err_file" ]]; then
-        log "kcadm error: $(tr '\n' ' ' < "$import_err_file")"
-      fi
-      rm -f "$import_err_file"
-      failed_imports=$((failed_imports + 1))
-      continue
-    fi
-    rm -f "$import_err_file"
-    log "Realm '$realm_name' imported."
+    "$KCADM_BIN" create realms -f "$realm_file" >/dev/null
   done
 
-  if (( failed_imports > 0 )); then
-    log "Realm import process completed with $failed_imports error(s). Keycloak will remain running."
-  else
-    log "Realm import process completed."
-  fi
+  log "Import process completed."
 }
 
 trap cleanup SIGINT SIGTERM
 
 log "Starting Keycloak..."
-"$KEYCLOAK_BIN" start --http-enabled=true --hostname-strict=false --cache=local &
+"$KEYCLOAK_BIN" start-dev --cache=local &
 KC_PID=$!
 
 if ! wait_for_keycloak; then
@@ -166,8 +149,15 @@ if ! wait_for_keycloak; then
   exit 1
 fi
 
-log "Configuring final admin user..."
+log "Setting up final admin user..."
 setup_admin_user
+
+# Ensure HTTP access to the master realm.
+# start-dev sets sslRequired=NONE only on first DB initialization;
+# on subsequent restarts it keeps the persisted value. This call forces it
+# on every startup to avoid the "HTTPS required" error in Docker.
+log "Enabling HTTP access on master realm..."
+"$KCADM_BIN" update realms/master -s sslRequired=NONE >/dev/null
 
 log "Importing realms..."
 import_missing_realms
