@@ -1,6 +1,7 @@
 #!/usr/bin/env pwsh
 param(
-  [string]$Engine = "docker"
+  [ValidateSet("podman", "docker")]
+  [string]$Engine = "podman"
 )
 
 Set-StrictMode -Version Latest
@@ -22,16 +23,6 @@ function Write-Success {
 function Write-Failure {
   param([string]$Message)
   Write-Host "❌ $Message"
-}
-
-function Show-Usage {
-  @"
-Usage: ./start.sh [docker|podman]
-
-Arguments:
-  docker  Use Docker as the container engine (default)
-  podman  Use Podman as the container engine
-"@ | Write-Host
 }
 
 function Invoke-CommandChecked {
@@ -72,34 +63,23 @@ function Get-CommandOutput {
   }
 }
 
-if ($Engine -in @("-h", "--help", "help")) {
-  Show-Usage
-  exit 0
-}
-
-if ($Engine -notin @("docker", "podman")) {
-  Write-Failure "Invalid engine: '$Engine'. Only 'podman' or 'docker' are allowed."
-  Show-Usage
-  exit 1
-}
-
 $composeCommand = @()
 
 if ($Engine -eq "docker") {
   if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    throw "docker not found on system."
+    throw "docker was not found on this system."
   }
 
   & docker compose version *> $null
   if ($LASTEXITCODE -ne 0) {
-    throw "docker is installed but 'docker compose' is not available."
+    throw "docker is installed, but 'docker compose' is not available."
   }
 
   $composeCommand = @("docker", "compose")
 }
 else {
   if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
-    throw "podman not found on system."
+    throw "podman was not found on this system."
   }
 
   & podman compose version *> $null
@@ -110,54 +90,61 @@ else {
     $composeCommand = @("podman-compose")
   }
   else {
-    throw "neither 'podman compose' nor 'podman-compose' could be found."
+    throw "'podman compose' and 'podman-compose' were not found."
   }
 }
 
 Write-Info "Selected engine: $Engine"
-Write-Progress -Activity "Identity Provider" -Status "Bringing up services" -PercentComplete 25
+Write-Progress -Activity "Infrastructure" -Status "Starting services" -PercentComplete 25
 Invoke-CommandChecked -Command $composeCommand -CmdArgs @("-f", $ComposeFile, "up", "-d")
 
-Write-Progress -Activity "Identity Provider" -Status "Checking health status" -PercentComplete 55
+Write-Progress -Activity "Infrastructure" -Status "Validating health checks" -PercentComplete 55
 $timeoutSeconds = 240
 $elapsed = 0
+
+# determine expected service count
+$services = & $composeCommand -f $ComposeFile config --services 2>$null
+$svcCount = if ($services) { ($services | Measure-Object -Line).Lines } else { 0 }
 
 while ($elapsed -lt $timeoutSeconds) {
   $statusOutput = Get-CommandOutput -Command $composeCommand -CmdArgs @("-f", $ComposeFile, "ps")
   $healthyCount = ([regex]::Matches($statusOutput, "healthy", "IgnoreCase")).Count
 
-  if ($statusOutput -match "postgres" -and $statusOutput -match "keycloak" -and $healthyCount -ge 2) {
+  if ($svcCount -gt 0 -and $healthyCount -ge $svcCount) {
     break
   }
 
   $percent = 55 + [math]::Min(40, [math]::Floor(($elapsed / $timeoutSeconds) * 40))
-  Write-Progress -Activity "Identity Provider" -Status "Waiting for healthy services..." -PercentComplete $percent
+  Write-Progress -Activity "Infrastructure" -Status "Waiting for healthy services..." -PercentComplete $percent
   Start-Sleep -Seconds 3
   $elapsed += 3
 }
 
 if ($elapsed -ge $timeoutSeconds) {
-  Write-Failure "Maximum wait time for health checks reached."
+  Write-Failure "Timed out waiting for health checks."
   Write-Info "Check logs with: $($composeCommand -join ' ') -f `"$ComposeFile`" logs -f"
   exit 1
 }
 
-Write-Progress -Activity "Identity Provider" -Status "Completed" -PercentComplete 100
+Write-Progress -Activity "Infrastructure" -Status "Completed" -PercentComplete 100
+$composeContent = Get-Content $ComposeFile -Raw
+Write-Success "Services ready 🚀"
 
-# ensure placeholders have been replaced before we try to parse the file
-if (Get-Content $ComposeFile -Raw | Select-String '__KEYCLOAK_PORT__') {
-    Write-Failure "compose.yml still contains placeholder values. Please run the project generator/configure step or edit the file to set a real port."
-    exit 1
+# show ports per service by parsing compose.yml
+Write-Info "Exposed ports by service:"
+$inServices = $false
+$inPorts = $false
+$currentSvc = ""
+foreach ($line in Get-Content $ComposeFile) {
+    if ($line -eq "services:") { $inServices = $true; continue }
+    if (-not $inServices) { continue }
+    if ($line -match '^  ([a-zA-Z][^: ]+):') { $currentSvc = $Matches[1]; $inPorts = $false }
+    elseif ($line -match '^    ports:\s*$') { $inPorts = $true }
+    elseif ($inPorts -and $line -match '^      - ') {
+        $port = ($line -replace '^      - ', '') -replace '"', ''
+        Write-Host ("ℹ️    {0,-25} {1}" -f "${currentSvc}:", $port)
+    }
+    elseif ($inPorts -and $line -match '^    \S') { $inPorts = $false }
 }
 
-$composeContent = Get-Content $ComposeFile -Raw
-$kcPort = if ($composeContent -match "- ['\"]?(\d+):8080['\"]?") { $Matches[1].Trim('"') } else { "8080" }
-$kcAdminUser = if ($composeContent -match 'KC_ADMIN_USERNAME:\s*(\S+)') { $Matches[1].Trim('"') } else { "admin" }
-$kcAdminPassword = if ($composeContent -match 'KC_ADMIN_PASSWORD:\s*(\S+)') { $Matches[1].Trim('"') } else { "admin" }
-
-Write-Success "Services ready 🚀"
-Write-Info "Keycloak: http://localhost:$kcPort"
-# note: fallback to 8080 above only happens on failure to parse the file
-Write-Info "Admin user: $kcAdminUser"
-Write-Info "Admin password: $kcAdminPassword"
 Write-Info "To stop: .\stop.ps1 -Engine $Engine"

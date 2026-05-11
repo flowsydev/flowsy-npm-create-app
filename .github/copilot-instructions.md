@@ -21,12 +21,12 @@ templates/
     scaffold/        # Boilerplate files to copy to destination
 ```
 
-**Template Module Contract** ([example](../templates/identity-provider/config.js)):
+**Template Module Contract** ([example](../templates/infra-kit/config.js)):
 
 - `getPrompts()` - Returns array of prompts objects (using prompts library format)
 - `configure(destPath, config)` - Post-copy customization (e.g., placeholder replacement)
 
-**Currently Active Template**: `identity-provider` - Keycloak + PostgreSQL Docker Compose setup
+**Currently Active Template**: `infra-kit` - Databases, messaging, identity, and supporting infrastructure in containers
 
 ## Key Conventions
 
