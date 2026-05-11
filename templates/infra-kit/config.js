@@ -130,6 +130,21 @@ function extractMajorVersion(tag) {
   return match ? match[1] : normalized;
 }
 
+function getDefaultServiceName(service, tag) {
+  return `${service}-${extractMajorVersion(tag)}`;
+}
+
+function validateServiceName(service, tag, value) {
+  const name = value.trim();
+  if (!/^[a-z][a-z0-9_-]*$/.test(name)) {
+    return 'Use lowercase letters, numbers, hyphens or underscores';
+  }
+  if (name === service) {
+    return `Use a versioned name such as '${getDefaultServiceName(service, tag)}'`;
+  }
+  return true;
+}
+
 function generateRandomPassword(length = 32) {
   return crypto.randomBytes(length).toString('base64').slice(0, length);
 }
@@ -406,17 +421,14 @@ async function promptServiceConfig(service, { serviceConfigs = {}, destPath } = 
   // Ports and service name per instance (tag)
   for (const tag of tags) {
     const ports = await promptPorts(service, tag);
-    const defaultServiceName = `${service}-${extractMajorVersion(tag)}`;
+    const defaultServiceName = getDefaultServiceName(service, tag);
     const { serviceName } = await prompts(
       {
         type: 'text',
         name: 'serviceName',
         message: `  Service name for ${service}:${tag} (in compose.yml):`,
         initial: defaultServiceName,
-        validate: (v) =>
-          /^[a-z][a-z0-9_-]*$/.test(v.trim())
-            ? true
-            : 'Use lowercase letters, numbers, hyphens or underscores',
+        validate: (v) => validateServiceName(service, tag, v),
       },
       { onCancel }
     );
@@ -863,7 +875,7 @@ async function collectAddTags(result, existingDetails) {
 
     for (const tag of newTags) {
       const ports = await promptPorts(type, tag);
-      const defaultServiceName = `${type}-${extractMajorVersion(tag)}`;
+      const defaultServiceName = getDefaultServiceName(type, tag);
       const { serviceName } = await prompts(
         {
           type: 'text',
@@ -871,9 +883,8 @@ async function collectAddTags(result, existingDetails) {
           message: `  Service name for ${type}:${tag} (in compose.yml):`,
           initial: defaultServiceName,
           validate: (v) => {
-            if (!/^[a-z][a-z0-9_-]*$/.test(v.trim())) {
-              return 'Use lowercase letters, numbers, hyphens or underscores';
-            }
+            const nameValidation = validateServiceName(type, tag, v);
+            if (nameValidation !== true) return nameValidation;
             if (currentServiceNames.includes(v.trim())) {
               return `Service name '${v.trim()}' already exists`;
             }
@@ -949,17 +960,14 @@ async function collectEditInstances(result, existingDetails) {
       { onCancel }
     );
 
-    const defaultServiceName = `${inst.type}-${extractMajorVersion(imageTag)}`;
+    const defaultServiceName = getDefaultServiceName(inst.type, imageTag);
     const { newServiceName } = await prompts(
       {
         type: 'text',
         name: 'newServiceName',
         message: `Service name in compose.yml (current: ${inst.serviceName}):`,
         initial: inst.serviceName !== defaultServiceName ? inst.serviceName : defaultServiceName,
-        validate: (v) =>
-          /^[a-z][a-z0-9_-]*$/.test(v.trim())
-            ? true
-            : 'Use lowercase letters, numbers, hyphens or underscores',
+        validate: (v) => validateServiceName(inst.type, imageTag, v),
       },
       { onCancel }
     );

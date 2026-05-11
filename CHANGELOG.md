@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.1] - 2026-05-10
+
+### Fixed
+
+- `infra-kit` service name prompts now consistently reject unversioned service names
+  and point users to the generated versioned default.
+- Service name defaults now share a single helper across create, add and edit flows.
+
+### Changed
+
+- Copilot repository instructions now reference the active `infra-kit` template.
+- Ignore local `.claude/` workspace files.
+
 ## [2.0.0] - 2026-05-03
 
 ### Added
